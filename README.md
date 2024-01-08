@@ -1,2 +1,2 @@
-# cont
-continuum for ANDES
+# SENECA
+continuum for ELT-ANDES
