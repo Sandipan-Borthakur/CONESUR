@@ -13,6 +13,7 @@ from scipy.io import readsav
 
 import splice_ech
 
+#test
 
 spec='./data/Reduced_red/spec-c.ech'
 
