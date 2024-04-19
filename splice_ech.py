@@ -44,6 +44,9 @@ def splice(ech, wave, spec, blaz, index, sig=None, ORDERS=None, COLRANGE=None,
     npix = ech.data.dtype['SPEC'].shape[1]  # Order length in pixels
     nord = ech.data.dtype['SPEC'].shape[0]  # Number of spectral orders
     
+    print("Lenth of orders in the ech :" +str(npix))
+    print("Number of orders in the ech :" +str(nord))
+    
     
     # creating the weights 
     
@@ -51,13 +54,15 @@ def splice(ech, wave, spec, blaz, index, sig=None, ORDERS=None, COLRANGE=None,
 
     if COLRANGE is not None:
         sz = np.shape(COLRANGE)
-        if sz[0] != 2:
-            print('COLRANGE should match the number of spectral orders')
-            print('Help:', COLRANGE)
+        #check the shape of the COLRANGE must be two, the begining and the end of each order pixel
+        if sz[1] != 2:
+            print('COLRANGE should match the nstructure of a spectral order, infor on begin and end pixel')
+            print('Help:\n', COLRANGE)
             raise SystemExit
-        if sz[1] != nord:
+        #check if the number of orders are correct
+        if sz[0] != nord:
             print('COLRANGE should match the number of spectral orders')
-            print('Help:', COLRANGE)
+            print('Help:\n', COLRANGE)
             raise SystemExit
         colr = COLRANGE
     else:

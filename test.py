@@ -14,7 +14,8 @@ from scipy.io import readsav
 
 from splice_ech import splice
 
-
+import warnings
+warnings.filterwarnings('ignore')
 
 if __name__ == '__main__':
     # 
@@ -40,6 +41,10 @@ if __name__ == '__main__':
     col_range=sav_data.col_range
             
    
+    
+   #def splice(ech, wave, spec, blaz, index, sig=None, ORDERS=None, COLRANGE=None,
+                #  WEIGHTS=None, SCALING=None, ORDER_SCALES=None, DEBUG=None, YRANGE=None, WRANGE=None):
+    
     # test splice_ech
     splice(ech[1], wave, spec, blzcoef, index=0, COLRANGE=list(col_range))
     
