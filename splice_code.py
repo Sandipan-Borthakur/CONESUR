@@ -18,7 +18,6 @@ from splice_ech import splice
 import bezier
 
 
-
 import warnings
 warnings.filterwarnings('ignore')
 
