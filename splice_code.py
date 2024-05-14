@@ -293,7 +293,6 @@ if has_sig==1:
 
 
 #for plotting all the orders
-fig, ax = plt.subplots(figsize=(12, 5))
 
 
 #ax.set_xlim([ww[-1][0], ww[0][-1]])
@@ -482,9 +481,17 @@ if iord0 > 0:
                      sig1[i1]=np.sqrt(sig1[i1]*sig1[i1]*wgt0+tempU1+tempU1*wgt1)
                      #plt.plot(w1,s1)
                      
-                #Debug option
+            #Debug option
+            if DEBUG==1:
+                #some plots
+                fig, ax = plt.subplots(figsize=(12, 5))
+                ax.plot(ww[iord],sp[iord]/bb[iord])
+                ax.plot(w0,s0/b0)
+                ax.plot(w1,s1/b1)
+
+                    
+            else:
                 
-            ax.plot(w1,s1/b1)
                     
                     
 
