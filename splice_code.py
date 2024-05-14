@@ -11,12 +11,13 @@ from astropy.io import fits
 import os
 import numpy as np
 from scipy.io import readsav
-
+import matplotlib.pyplot as plt
 from splice_ech import splice
 
 
 import bezier
 
+import pyreduce
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -80,6 +81,24 @@ col_range=sav_data.col_range
 #splice(ech[1], wave, spec, blzcoef, index=0, COLRANGE=list(col_range))
 
 
+
+
+
+#BUG fixing the the wrong number of col_rang ERROR
+aa = np.zeros(shape=(45, 2))
+for i in np.linspace(0, len(col_range)-1, num=len(col_range)):
+    i=int(i)
+    aa[i]=col_range[i]
+    aa[i][1]=int(aa[i][1]+1)
+
+    
+col_range=aa.astype(int)
+
+
+
+
+
+
 #defining the calling parameter 
 ech=ech[1]
 wave=wave[0]
@@ -91,6 +110,7 @@ sig=None
 ORDERS=None
 
 COLRANGE=list(col_range)
+
 WEIGHTS=None
 
 SCALING=None
@@ -98,6 +118,9 @@ ORDER_SCALES=None
 DEBUG=None
 YRANGE=None
 WRANGE=None
+
+
+
 
 
 
@@ -146,7 +169,7 @@ print("Number of orders in the ech :" +str(nord))
 
 # creating the weights 
 
-weights = np.zeros((npix, nord)) + 1
+weights = np.zeros((nord, npix)) + 1 
 
 if COLRANGE is not None:
     print('Applying Col Range...')
@@ -162,16 +185,19 @@ if COLRANGE is not None:
         print('Help:\n', COLRANGE)
         raise SystemExit
     colr = COLRANGE
+    
 else:
     colr = np.zeros((2, nord), dtype=int)
     colr[0, :] = 0
-    colr[1, :] = npix - 1
+    colr[1, :] = npix - 1 # CHECK if it need -1 or -0
 
 
 
 
 
 if ORDERS is not None:
+    
+
     print('Applying Orders...')
     # If a subset of orders was specified
     # the [0] is to fix the format of the ech
@@ -186,8 +212,10 @@ if ORDERS is not None:
     npix = len(sp[0, 0])  # Order length in pixels
     nord = len(sp[0, :])   # Number of spectral orders
 
-    weights = np.zeros((npix, nord)) + 1
+    weights = np.zeros((nord, npix)) + 1  # 45 rows (one for each order) and each order has 4096 pixels
 
+    
+    
 else:
     # the [0] is to fix the format of the ech
     sp = ech.data['SPEC'][0]
@@ -217,8 +245,9 @@ else:
 
         for iord in range(nord):
         
-            i0 = colr[iord][0]  # python way to say i0=[0,iord] whoch means in idl the first element (0) of the iorder (the row)
+            i0 = colr[iord][0]  # python way to say i0=[0,iord] which means in idl the first element (0) of the iorder (the row)
             i1 = colr[iord][1]
+           
             #bb[i0:i1, iord] = np.median(ech.data['CONT'][i0:i1, iord], axis=0)
 
     if sig is not None:
@@ -250,6 +279,11 @@ iord0=signal_orders.index(max(signal_orders))
 beg1 = colr[iord0][0]
 end1 = colr[iord0][1]
 
+print('BUGG-------')
+print(colr[iord0][1])
+print('BUGG-------')
+
+
 w1 = ww[iord0][beg1:end1]
 s1 = sp[iord0][beg1:end1]
 b1 = bb[iord0][beg1:end1]
@@ -257,6 +291,20 @@ b1 = bb[iord0][beg1:end1]
 if has_sig==1:
     sig1 = unc[iord0][beg1:end1]
 
+
+#for plotting all the orders
+fig, ax = plt.subplots(figsize=(12, 5))
+
+
+#ax.set_xlim([ww[-1][0], ww[0][-1]])
+
+
+#for plotting the overlap
+fig1, ax1 = plt.subplots(figsize=(12, 5))
+
+
+
+#plt.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
 
 print('Starting backwards loop')
 if iord0 > 0:
@@ -280,44 +328,165 @@ if iord0 > 0:
             
             
         #Defining the overlap region in i0 and ni0 where i0 is an array of the index (pixels) and ni0 its length
-        i0 = np.where((w0 >= np.min(w1)) & (w0 <= np.max(w1)))[0] # Overlap within the previous order 
-        ni0=len(i0)                     # Overlap within the previous order 
+        i0_pix = np.where((w0 >= np.min(w1)) & (w0 <= np.max(w1)))[0] # Overlap within the previous order 
+        i0 = ((w0 >= np.min(w1)) & (w0 <= np.max(w1)))    #MASK
+        
+        ni0=len(i0_pix)                     # Overlap within the previous order ()
         ii0 = np.arange(len(i0))
         
         
+        
         #setting the WRANGE
-        if WRANGE is not None :  # If exclusion regions are given, check the overlaps
-            for iwrange in range(len(WRANGE)//2):
-                iii0 = np.where((w0[i0[ii0]] < WRANGE[0, iwrange]) or (w0[i0[ii0]] > WRANGE[1, iwrange]))[0]
-                if len(iii0) > 0:
-                    ii0 = ii0[iii0]
+        ## WARNING w0[i0] does not work, it should be a mask! not another array. np.take can work 
+        #np.take(w0,i0)
+       # if WRANGE is not None :  # If exclusion regions are given, check the overlaps
+        #    for iwrange in range(len(WRANGE)//2):
+         #       iii0 = np.where((w0[i0[ii0]] < WRANGE[0, iwrange]) or (w0[i0[ii0]] > WRANGE[1, iwrange]))[0]
+          #      if len(iii0) > 0:
+           #         ii0 = ii0[iii0]
                 # DOIT check that sctructure =>  WRANGE[0, iwrange]
-                else:
-                    ni0 = 0
+            #    else:
+             #       ni0 = 0
                     
                     
         #Overlap with the current order based in the same logic as above
-        i1 = np.where((w1 >= np.min(w0)) & (w1 <= np.max(w0)))[0] 
-        ni1=len(i1)                    
+        i1_pix = np.where((w1 >= np.min(w0)) & (w1 <= np.max(w0)))[0] 
+        i1 = ((w1 >= np.min(w0)) & (w1 <= np.max(w0)))    #MASK
+        
+        ni1=len(i1_pix)                    
         ii1 = np.arange(len(i1))
          
          
         #setting the WRANGE
-        if WRANGE is not None :  # If exclusion regions are given, check the overlaps
-            for iwrange in range(len(WRANGE)//2):
-                iii1 = np.where((w1[i1[ii1]] < WRANGE[0, iwrange]) or (w1[i1[ii1]] > WRANGE[1, iwrange]))[0]
-                if len(iii1) > 0:
-                    ii1 = ii1[iii1]
+     #   if WRANGE is not None :  # If exclusion regions are given, check the overlaps
+      #      for iwrange in range(len(WRANGE)//2):
+       #         iii1 = np.where((w1[i1[ii1]] < WRANGE[0, iwrange]) or (w1[i1[ii1]] > WRANGE[1, iwrange]))[0]
+        #        if len(iii1) > 0:
+         #           ii1 = ii1[iii1]
                  
-                else:
-                    ni1 = 0      
+       #         else:
+        #            ni1 = 0      
+        
+        
+        
         if (ni0 > 0) and (ni1 > 0):
             print('We have overlaping orders')
             
-            #tempS0=
+            #IDL original
+            #tmpS0=bezier_interp(w1,s1,bezier_init(w1,s1,/DOUBLE),w0[i0],/DOUBLE)
+            tempS0=pyreduce.util.bezier_interp(w1,s1,w0[i0])
+            
+            tempB0=pyreduce.util.bezier_interp(w1,b1,w0[i0])
+            
+            if has_sig==1:
+                tempU0=pyreduce.util.bezier_interp(w1,sig1,w0[i0])
+
+           
+
+            tempS1=pyreduce.util.bezier_interp(w0,s0,w1[i1])
+            
+            tempB1=pyreduce.util.bezier_interp(w0,b0,w1[i1])
+            
+            if has_sig==1:
+                tempU1=pyreduce.util.bezier_interp(w0,sig0,w1[i1])
+
+        
+            # add scaling 
+            if SCALING is not None:
+                
+                scl0 = np.sum(s0[i0[ii0]]/b0[i0[ii0]])/np.sum(tempS0[ii0]/tempB0[ii0])
+                scl1 = np.sum(s1[i1[ii1]]/b1[i1[ii1]])/np.sum(tempS1[ii1]/tempB0[ii1])
+                
+                scl=np.sqrt(scl0/scl1)
+                s1=s1*scl
+                if has_sig==1:
+                    tempS0=tempS0*scl
+                    tempU0=tempU0*scl
+                    order_scales[iord]=scl
+            #end scaling
+             
+            if (ww[iord][0]) > (ww[iord+1][0]):
+                print('Current order (1) is bluer than the previous (0)')
+                
+                wgt0 = np.linspace(0.0, ni0-1, num=ni0)/ni0-1
+                wgt1 = 1.0 - wgt0
+                
+                #python i0 = colr[iord][0]  # IDL i0=[0,iord]
+                weights[iord+1][i0] = weights[iord+1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
+                
+                if beg0 > 0:
+                    
+                    weights[iord+1][0:beg0-1]=0.0
+                    s0[i0]=s0[i0]*wgt0+tempS0*wgt1
+                    b0[i0]=b0[i0]*wgt0+tempB0*wgt1
+                    
+                if has_sig==1:
+                    sig[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
+                    wgt1=  np.linspace(0.0, ni1-1, num=ni1)/ni1-1
+                    wgt0 = 1.0 - wgt1
+                    weights[iord][i1]=weights[iord][i1]*s1[i1]/(s1[i1]*wgt0+tempS1*wgt1)
+                    
+                if end1 < npix-0:
+                    weights[iord][end1+1:npix-1]=0.0
+                    s1[i1]=s1[i1]*wgt0+tempS1*wgt1
+                    b1[i1]=b1*wgt0+tempB1*wgt1
+                    
+                if has_sig==1:
+                    sig1[i1]=np.sqrt(sig1[i1]*sig1[i1]*wgt0+tempU1+tempU1*wgt1)
+                    #plt.plot(w1,s1)
+                    
+                #IDL do some plot here ...
+                    
+                #plot the whole thing
+                #ax.plot(w1,s1)  
+                
+                
+                ax1.plot(w1,s1)
+                ax1.plot(w1,b1)
+                
+                #ax1.plot(w1,weights[iord]*s1)
 
 
+                ax1.plot(w0,s0)
+                ax1.plot(w0,b0)
+                
+                #ax1.plot(w0,weights[iord+1]*s0)
+            #check the location of this else
+            else:
+            
+                print('in else')
+                wgt1 = np.linspace(0.0, ni0-1, num=ni0)/ni0-1
+                wgt0 = 1.0 - wgt1
+                
+                weights[iord+1][i0] = weights[iord+1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
 
+                
+                if end0 < npix-0:
+                     
+                     weights[iord+1][end0+1:npix-1]=0.0
+                     s0[i0]=s0[i0]*wgt0+tempS0*wgt1
+                     b0[i0]=b0[i0]*wgt0+tempB0*wgt1
+                     
+                if has_sig==1:
+                     sig[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
+                     wgt1=  np.linspace(0.0, ni1-1, num=ni1)/ni1-1
+                     wgt0 = 1.0 - wgt1
+                     weights[iord][i1]=weights[iord][i1]*s1[i1]/(s1[i1]*wgt0+tempS1*wgt1)
+                     
+                if beg1 > 0:
+                     weights[iord][0:beg1-1]=0.0
+                     s1[i1]=s1[i1]*wgt0+tempS1*wgt1
+                     b1[i1]=b1*wgt0+tempB1*wgt1
+                     
+                if has_sig==1:
+                     sig1[i1]=np.sqrt(sig1[i1]*sig1[i1]*wgt0+tempU1+tempU1*wgt1)
+                     #plt.plot(w1,s1)
+                     
+                #Debug option
+                
+            ax.plot(w1,s1/b1)
+                    
+                    
 
 
 
