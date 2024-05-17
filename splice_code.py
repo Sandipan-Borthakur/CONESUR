@@ -13,6 +13,8 @@ import numpy as np
 from scipy.io import readsav
 import matplotlib.pyplot as plt
 from splice_ech import splice
+from numpy.polynomial.polynomial import Polynomial
+
 
 
 import bezier
@@ -23,7 +25,9 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-
+def poly_fit(x, y, degree=1):
+    p = Polynomial.fit(x, y, degree)
+    return p.convert().coef
 
 
 
@@ -305,6 +309,8 @@ fig1, ax1 = plt.subplots(figsize=(12, 5))
 
 #plt.set_yticks([0.0, 0.25, 0.5, 0.75, 1.0])
 
+#=============================================================================
+
 print('Starting backwards loop')
 if iord0 > 0:
     for iord in np.flip(np.linspace(0, iord0-1, num=iord0)): #start with the biggest signal order and goes n-1 n-2 ...
@@ -314,16 +320,21 @@ if iord0 > 0:
         w0 = w1
         s0 = s1
         b0 = b1
+        
+        
         if has_sig:
             sig0 = sig1
         
         beg1 = colr[iord][0]  # New current order
         end1 = colr[iord][1]
+        
         w1 = ww[iord][beg1:end1]
         s1 = sp[iord][beg1:end1]
         b1 = bb[iord][beg1:end1]
+        
+        
         if has_sig:
-            sig1 = unc[iord0][beg1:end1]
+            sig1 = unc[iord][beg1:end1]
             
             
         #Defining the overlap region in i0 and ni0 where i0 is an array of the index (pixels) and ni0 its length
@@ -484,21 +495,146 @@ if iord0 > 0:
             #Debug option
             if DEBUG==1:
                 #some plots
-                fig, ax = plt.subplots(figsize=(12, 5))
+                fig, ax = plt.subplots(figsize=(10, 10))
                 ax.plot(ww[iord],sp[iord]/bb[iord])
                 ax.plot(w0,s0/b0)
                 ax.plot(w1,s1/b1)
 
                     
             else:
+                #Calculate xmid
+                xmid = (beg0 - end1) / 2.0
+
+                #Perform element-wise division and find the top values along the columns
+                scl0 = pyreduce.util.top(s0/b0, 1, poly=True)
+                b0 = b0 * scl0
                 
-                    
-                    
+                scl0 = pyreduce.util.top(s0/b0, 1, poly=True) # why twice?
+
+                scl1 = pyreduce.util.top(s1/b1, 1, poly=True)
+
+                #Polynomial fitting (1st degree)
+
+                poly0 = Polynomial.fit(w0, scl0, 1) # the poly itself
+                scl0 = poly_fit(w0, scl0, degree=1) # change the meaning of scl0 now it has the coef of poly
+
+                poly1 = Polynomial.fit(w1, scl1, 1) # the poly itself
+                scl1 = poly_fit(w1, scl1, degree=1) # change the meaning of scl0 now it has the coef of poly
+
+
+                #Generate a range of values similar to IDL's dindgen
+                xx = np.linspace(0, 1, 101) * (np.min(w0) - np.max(w1)) + np.max(w1)
+
+                if DEBUG == 1:
+                    #checking the polynomium 
+                    fig, ax = plt.subplots(figsize=(10, 10))
+                    ax.plot(ww[iord],sp[iord]/bb[iord])
+                    ax.plot(w1,s1/b1)
+                    ax.plot(xx,poly1(xx))
+                    ax.plot(w0,s0/b0)
+                    ax.plot(xx,poly0(xx))
+                
+                n =  np.sum(scl0[1] * scl1[1] * xx * xx +
+                   scl0[1] * scl1[0] * xx +
+                   scl1[1] * scl0[0] * xx +
+                   scl1[0] * scl0[0])
+                
+                d = np.sum((scl1[1] * xx + scl1[0]) ** 2)
+
+                
+                scl = n/d
+                
+                s1=s1*scl
+                
+                order_scales[iord]=scl
+                tempS0=tempS0*scl
+                
+                #end else
+            #making spectra
+            
+            
+            # to adapt the IDL   sp[beg0:end0,iord+1]=s0>0.
+            # I modified the s0 here
+            s0[s0<0] = 0
+            sp[iord+1][beg0:end0] = s0
+            # I modified the b0 here
+            b0[b0<1] = 1
+            bb[iord+1][beg0:end0] = b0    
+            
+            #setting sig0
+            if has_sig==1:
+                unc[iord+1][beg0:end0] = sig0
+             
+                
+            # I modified the s0 here
+            s1[s1<0] = 0
+            sp[iord][beg1:end1] = s1
+            # I modified the b1 here
+            b1[b1<1] = 1
+            bb[iord][beg1:end1] = b1
+
+            #setting sig0
+            if has_sig==1:
+                unc[iord][beg1:end1] = sig1
+
+
+
+
+
+#=============================================================================
+
+print('Starting forward loop')
+
+
+beg1 = colr[0,iord0]
+end1 = colr[1,iord0]
+
+w1 = ww[iord0][beg1:end1]
+s1 = sp[iord0][beg1:end1]
+b1 = b1[iord0][beg1:end1]
+
+if has_sig == 1:
+    sig1=unc[iord0][beg1:end1]
+
+if iord0 < iord0+1 :
+    
+  for iord in np.flip(np.linspace(iord0+1, nord-1, num=iord0)): #start with the biggest signal order and goes n-1 n-2 ...
+      
+      iord=int(iord)    
+      beg0 = beg1  # Shift current order to previous
+      end0 = end1
+      w0 = w1
+      s0 = s1
+      b0 = b1
+      
+      if has_sig:
+          sig0 = sig1
+      
+      beg1 = colr[iord][0]  # New current order
+      end1 = colr[iord][1]
+      
+      w1 = ww[iord][beg1:end1]
+      s1 = sp[iord][beg1:end1]
+      b1 = bb[iord][beg1:end1]
+      
+      if has_sig:
+          sig1 = unc[iord][beg1:end1]
+          
+          
+      #Defining the overlap region in i0 and ni0 where i0 is an array of the index (pixels) and ni0 its length
+      i0_pix = np.where((w0 >= np.min(w1)) & (w0 <= np.max(w1)))[0] # Overlap within the previous order 
+      i0 = ((w0 >= np.min(w1)) & (w0 <= np.max(w1)))    #MASK
+      
+      ni0=len(i0_pix)                     # Overlap within the previous order ()
+      ii0 = np.arange(len(i0))
+
+
+
+
 
 
 
 #print('Beginning the Splice higher orders')
-
 
 
 
