@@ -431,7 +431,7 @@ if iord0 > 0:
                     b0[i0]=b0[i0]*wgt0+tempB0*wgt1
                     
                 if has_sig==1:
-                    sig[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
+                    sig0[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
                     wgt1=  np.linspace(0.0, ni1-1, num=ni1)/ni1-1
                     wgt0 = 1.0 - wgt1
                     weights[iord][i1]=weights[iord][i1]*s1[i1]/(s1[i1]*wgt0+tempS1*wgt1)
@@ -586,12 +586,12 @@ if iord0 > 0:
 print('Starting forward loop')
 
 
-beg1 = colr[0,iord0]
-end1 = colr[1,iord0]
+beg1 = colr[iord0][0]
+end1 = colr[iord0][1]
 
 w1 = ww[iord0][beg1:end1]
 s1 = sp[iord0][beg1:end1]
-b1 = b1[iord0][beg1:end1]
+b1 = bb[iord0][beg1:end1]
 
 if has_sig == 1:
     sig1=unc[iord0][beg1:end1]
@@ -676,8 +676,8 @@ if iord0 < iord0+1 :
            # add scaling 
            if SCALING is not None:
                
-               scl0 = np.sum(s0[i0[ii0]]/b0[i0[ii0]])/np.sum(tempS0[ii0]/tempB0[ii0])
-               scl1 = np.sum(s1[i1[ii1]]/b1[i1[ii1]])/np.sum(tempS1[ii1]/tempB0[ii1])
+               scl0 = np.sum(abs(s0[i0[ii0]]/b0[i0[ii0]]))/np.sum(abs(tempS0[ii0]/tempB0[ii0]))
+               scl1 = np.sum(abs(s1[i1[ii1]]/b1[i1[ii1]]))/np.sum(abs(tempS1[ii1]/tempB0[ii1]))
                
                scl=np.sqrt(scl0/scl1)
                s1=s1*scl
@@ -688,28 +688,28 @@ if iord0 < iord0+1 :
            #end scaling
             
            if (ww[iord][0]) > (ww[iord+1][0]):
-               print('Current order (1) is bluer than the previous (0)')
+               print('Current order (1) is redder than the previous (0)')
                
                wgt0 = np.linspace(0.0, ni0-1, num=ni0)/ni0-1
                wgt1 = 1.0 - wgt0
                
                #python i0 = colr[iord][0]  # IDL i0=[0,iord]
-               weights[iord+1][i0] = weights[iord+1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
+               weights[iord-1][i0] = weights[iord-1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
                
-               if beg0 > 0:
+               if end0 < npix-1:
                    
-                   weights[iord+1][0:beg0-1]=0.0
+                   weights[iord-1][end0+1:npix-1]=0.0
                    s0[i0]=s0[i0]*wgt0+tempS0*wgt1
                    b0[i0]=b0[i0]*wgt0+tempB0*wgt1
                    
                if has_sig==1:
-                   sig[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
+                   sig0[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
                    wgt1=  np.linspace(0.0, ni1-1, num=ni1)/ni1-1
                    wgt0 = 1.0 - wgt1
                    weights[iord][i1]=weights[iord][i1]*s1[i1]/(s1[i1]*wgt0+tempS1*wgt1)
                    
-               if end1 < npix-0:
-                   weights[iord][end1+1:npix-1]=0.0
+               if beg1 > 0 :
+                   weights[iord][0:beg1-1]=0.0
                    s1[i1]=s1[i1]*wgt0+tempS1*wgt1
                    b1[i1]=b1*wgt0+tempB1*wgt1
                    
@@ -740,23 +740,23 @@ if iord0 < iord0+1 :
                wgt1 = np.linspace(0.0, ni0-1, num=ni0)/ni0-1
                wgt0 = 1.0 - wgt1
                
-               weights[iord+1][i0] = weights[iord+1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
+               weights[iord-1][i0] = weights[iord-1][i0] * s0[i0]/(s0[i0]*wgt0+tempS0*wgt1)
 
                
-               if end0 < npix-0:
+               if beg0 > 0:
                     
-                    weights[iord+1][end0+1:npix-1]=0.0
+                    weights[iord-1][0:beg0-1]=0.0
                     s0[i0]=s0[i0]*wgt0+tempS0*wgt1
                     b0[i0]=b0[i0]*wgt0+tempB0*wgt1
                     
                if has_sig==1:
-                    sig[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
+                    sig0[i0] = np.sqrt(sig0[i0]*sig0[i0]*wgt0+tempU0*tempU0*wgt1)
                     wgt1=  np.linspace(0.0, ni1-1, num=ni1)/ni1-1
                     wgt0 = 1.0 - wgt1
                     weights[iord][i1]=weights[iord][i1]*s1[i1]/(s1[i1]*wgt0+tempS1*wgt1)
                     
-               if beg1 > 0:
-                    weights[iord][0:beg1-1]=0.0
+               if end1 < npix-1 :
+                    weights[iord][end1+1:npix-1]=0.0
                     s1[i1]=s1[i1]*wgt0+tempS1*wgt1
                     b1[i1]=b1*wgt0+tempB1*wgt1
                     
@@ -779,10 +779,11 @@ if iord0 < iord0+1 :
 
                #Perform element-wise division and find the top values along the columns
                scl0 = pyreduce.util.top(s0/b0, 1, poly=True)
-               b0 = b0 * scl0
                
-               scl0 = pyreduce.util.top(s0/b0, 1, poly=True) # why twice?
+               scl1 = pyreduce.util.top(s1/b1, 1, poly=True)
 
+               b1 = b1 * scl1
+               
                scl1 = pyreduce.util.top(s1/b1, 1, poly=True)
 
                #Polynomial fitting (1st degree)
@@ -828,10 +829,10 @@ if iord0 < iord0+1 :
            # to adapt the IDL   sp[beg0:end0,iord+1]=s0>0.
            # I modified the s0 here
            s0[s0<0] = 0
-           sp[iord+1][beg0:end0] = s0
+           sp[iord-1][beg0:end0] = s0
            # I modified the b0 here
            b0[b0<1] = 1
-           bb[iord+1][beg0:end0] = b0    
+           bb[iord-1][beg0:end0] = b0    
            
            #setting sig0
            if has_sig==1:
