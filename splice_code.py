@@ -851,11 +851,55 @@ if iord0 < iord0+1 :
                unc[iord][beg1:end1] = sig1
 
 
+#=============================================================================
+
+#Form the output arrays
+
+# INDEX array will track assosciation of pixels with the original CCD pixels
 
 
+for iord in np.flip(np.linspace(0, nord-1, num=nord)):
+    
+    i1=colr[int(iord)][0]
+    i2=colr[int(iord)][1]
+    
+    
+    # if it is the first order, do...
+    if (iord==0):
+        wave=ww[iord][i1:i2]
+        spec=sp[iord][i1:i2]
+        blaz=bb[iord][i1:i2]
+        
+        if has_sig==1:
+            
+            sig = unc[iord][i1:i2]
+            index = np.full(i2 - i1+1, iord)
+        
+    else:
+        # add the orders together in one single spectrum
+        wave = np.concatenate((wave, ww[i1:i2, iord]))
+        spec = np.concatenate((spec, sp[i1:i2, iord]))
+        blaz = np.concatenate((blaz, bb[i1:i2, iord]))
 
+        if has_sig==1:
+            
+            sig = np.concatenate((sig, unc[i1:i2, iord]))
+            index=np.concatenate((index, np.full(i2 - i1+1, iord)))
 
+isort = np.argsort(wave)
 
+wave=wave[isort]
+spec=spec[isort]
+blaz=blaz[isort]
+
+index=index[isort]
+
+if has_sig==1:
+    sig=sig[isort]
+    
+    
+
+# END    
 
 
 #print('Beginning the Splice higher orders')
