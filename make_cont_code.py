@@ -196,6 +196,9 @@ cont=ech[1].data['CONT']
 wave=ech[1].data['WAVE']
     
 sig = sig * np.sqrt(cont)
+
+
+
     
 sav_data = readsav('data/'+directory+'/harps_blue.ord_default.sav')
     
@@ -233,7 +236,7 @@ for i in np.linspace(0, len(col_range)-1, num=len(col_range)):
 col_range=aa.astype(int)
 
 
-
+    
 #-----------
 
 #defining the calling parameter for make_cont
@@ -353,7 +356,16 @@ if have_wave is False:
 else:
     print('MAKE_CONT found a WAVE in ech structure')
 
-        
+
+
+if sig is not None:
+    print('Applying Sigma...')
+    # Sanity check for 'SIG'
+    if not 'SIG' in ech.columns.names :
+        has_sig = 1 
+else:
+    has_sig = 0
+       
 
 #numbers based in the first order
 npix = ech.data.dtype['SPEC'].shape[1]  # Order length in pixels
@@ -538,6 +550,7 @@ ss    = spliceout['spec']
 bb    = spliceout['cont']
 sig   = spliceout['unc']
 
+index = spliceout['index']
 
 if SPLICE_ONLY != None:
     out={'wave':wsort, 'spec':ss, 'cont':bb, 'unc':sig}
@@ -615,6 +628,148 @@ cont_B=1.0
 #=========================================================================
 
 #All the same except for the variable names
+
+
+# if exclusion regions are given, set weights to zero
+if WRANGE != None:
+    
+    for i in np.linspace(0, len(WRANGE)//2-1, num=len(WRANGE)//2-1):
+        condition = (wave >= WRANGE[i][0]) & (wave <= WRANGE[i][1])
+        ss_B[condition] = 0.0
+
+
+
+c=ss_B/cont_B
+
+
+
+if POLY!=None:
+    if TEMPLATE != None:
+        for ii in range(par_0 + 1):
+            c = pyreduce.util.middle(c, POLY if POLY > 2 else 15, eps=par_2, weight=weight, POLY=True)
+        c = pyreduce.util.middle(c, POLY if POLY > 2 else 15, eps=par_4, weight=weight, POLY=True) * cont_B
+    else:
+        for ii in range(par_0 + 1):
+            c = pyreduce.util.top(c, POLY if POLY > 2 else 15, eps=par_2, weight=weight, POLY=True)
+        c = pyreduce.util.top(c, POLY if POLY > 2 else 15, eps=par_4, weight=weight, POLY=True) * cont_B
+else:
+    if TEMPLATE != None:
+        for ii in range(par_0 + 1):
+            c = pyreduce.util.middle(c, par_1, eps=par_2, weight=weight, lambda2=par_3)
+        c =pyreduce.util. middle(c, par_1, eps=par_4, weight=weight, lambda2=par_3) * cont_B
+    else:
+        for ii in range(par_0 + 1):
+            c = pyreduce.util.top(c, par_1, eps=par_2, weight=weight, lambda2=par_3)
+        c = pyreduce.util.top(c, par_1, eps=par_4, weight=weight, lambda2=par_3) * cont_B
+
+print('if Poly defined value of c:', c)   
+
+
+
+cont_B = c*par_5
+cont_B = pyreduce.util.middle(cont_B,1.0)
+
+
+#---
+# PLOT
+#---
+
+
+#Interpolate the continuum back on every sp. order
+
+
+#---
+# PLOT
+#---
+
+
+#Define the output 
+
+# Perform the operations
+#cont_B2 = bezier_init(wave - wmin, cont_B)
+cont = pyreduce.util.bezier_interp(wave - wmin, cont_B, wsort - wmin)
+
+
+
+for iord in range(nord):
+    
+    i1 = colrange[iord][0]
+    i2 = colrange[iord][1]
+    
+    i = iord #bug with index
+    
+    # format issue need [0]
+    e.data['WAVE'][0][iord][i1:i2] = wsort[i]
+    e.data['SPEC'][0][iord][i1:i2] = ss[i]
+    
+    has_sig=0 # fix bug, does not indentify has_sig
+    if has_sig == 1 :
+        e.data['SIG'][0][iord][i1:i2] = sig[i]
+        
+        
+    e.data['CONT'][0][iord][:] = 1.0
+    e.data['CONT'][0][iord][i1:i2] = cont[i] * bbb[i]
+
+
+
+# Print results (for verification)
+print('e.wave:', e.data['WAVE'])
+print('e.spec:', e.data['SPEC'])
+print('e.sig:', e.data['SIG'])
+print('e.cont:', e.data['CONT'])
+
+
+#Inspect every sp. order
+
+
+#---
+# PLOT
+#---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

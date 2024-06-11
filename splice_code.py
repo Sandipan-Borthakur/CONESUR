@@ -906,7 +906,7 @@ if has_sig==1:
     
   
 
-spliceout = {'wave':wave, 'spec':spec, 'cont':blaz, 'unc':sig}    
+spliceout = {'wave':wave, 'spec':spec, 'cont':blaz, 'unc':sig, 'index': index}    
 
 # For testing propose save the output in a pickle
 
