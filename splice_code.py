@@ -16,8 +16,7 @@ from splice_ech import splice
 from numpy.polynomial.polynomial import Polynomial
 
 
-
-import bezier
+import pickle as pkl
 
 import pyreduce
 
@@ -180,7 +179,7 @@ if COLRANGE is not None:
     sz = np.shape(COLRANGE)
     #check the shape of the COLRANGE must be two, the begining and the end of each order pixel
     if sz[1] != 2:
-        print('COLRANGE should match the nstructure of a spectral order, infor on begin and end pixel')
+        print('COLRANGE should match the structure of a spectral order, infor on begin and end pixel')
         print('Help:\n', COLRANGE)
         raise SystemExit
     #check if the number of orders are correct
@@ -229,6 +228,7 @@ else:
         print('Applying Scailing...')
         #bb = ech.data['CONT'][0] > 1. #original in IDL
         bb = ech.data['CONT'][0]
+        # b = np.where(blaze<1, 1, blaze) maybe use that
         bb[bb<1]=1
         print('Scailing')
         
@@ -858,10 +858,11 @@ if iord0 < iord0+1 :
 # INDEX array will track assosciation of pixels with the original CCD pixels
 
 
-for iord in np.flip(np.linspace(0, nord-1, num=nord)):
+for iord in np.flip(np.linspace(0, nord-1, num=nord)):    
+    iord=int(iord)
     
-    i1=colr[int(iord)][0]
-    i2=colr[int(iord)][1]
+    i1=colr[iord][0]
+    i2=colr[iord][1]
     
     
     # if it is the first order, do...
@@ -877,14 +878,14 @@ for iord in np.flip(np.linspace(0, nord-1, num=nord)):
         
     else:
         # add the orders together in one single spectrum
-        wave = np.concatenate((wave, ww[i1:i2, iord]))
-        spec = np.concatenate((spec, sp[i1:i2, iord]))
-        blaz = np.concatenate((blaz, bb[i1:i2, iord]))
+        wave = np.append(wave, ww[iord][i1:i2])
+        spec = np.append(spec, sp[iord][i1:i2])
+        blaz = np.append(blaz, bb[iord][i1:i2])
 
         if has_sig==1:
             
-            sig = np.concatenate((sig, unc[i1:i2, iord]))
-            index=np.concatenate((index, np.full(i2 - i1+1, iord)))
+            sig   = np.append(sig, unc[iord][i1:i2])
+            index = np.append(index, np.full(i2 - i1+1, iord))
 
 isort = np.argsort(wave)
 
@@ -892,17 +893,32 @@ wave=wave[isort]
 spec=spec[isort]
 blaz=blaz[isort]
 
-index=index[isort]
+
+#does not work if has_sig == 0 
+try:
+    index=index[isort]
+except:
+    index = 0
+    
 
 if has_sig==1:
     sig=sig[isort]
     
+  
+
+spliceout = {'wave':wave, 'spec':spec, 'cont':blaz, 'unc':sig}    
+
+# For testing propose save the output in a pickle
+
+with open('./splice-out.p','wb') as sp_save:
+    pkl.dump(spliceout, sp_save)
+    
+  
     
 
 # END    
 
 
-#print('Beginning the Splice higher orders')
 
 
 
