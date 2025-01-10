@@ -33,26 +33,15 @@ Created on Wed Feb 21 11:39:23 2024
 #% Compiled module: TOP.
 
 from astropy.io import fits
-import os
 import numpy as np
 from scipy.io import readsav
 import matplotlib.pyplot as plt
-from numpy.polynomial.polynomial import Polynomial
-
-
-import bezier 
-
+import scipy
 import pickle as pkl
-
 import pyreduce
-
 import warnings
 warnings.filterwarnings('ignore')
 
-
-def poly_fit(x, y, degree=1):
-    p = Polynomial.fit(x, y, degree)
-    return p.convert().coef
 
 
 def bezier_init(x,y):
@@ -104,61 +93,50 @@ def bezier_init(x,y):
 
 
 
-# bugs!
-def bezier_interp(xa,ya,y2a,x):
-    x=np.array(x)
-    N=len(xa)
-    #M=len(x) #used in case of double
-    
-    y=x*0
-    
-    ii  = np.where((x > min(xa)))  and np.where((x < max(xa)))
-    
-    nii = len(ii)
 
-    if nii == 0:
-        return y
-    
-    indices = np.searchsorted(xa, x)
-    
-    KLO = np.clip(indices < (N - 2), 0, 1)
-    print('KLO')
-    print(KLO)
-    KHI=KLO+1
-    print('KHI')
-    print(KHI)
-    
-    H=xa[KHI]-xa[KLO]
-    y1=ya[KLO]
-    y2=ya[KHI]
-    
-    
-    A=(xa[KHI]-x)/H
-    B=(x-xa[KLO])/H
-    
-    C0=y1+H/3.0*y2a[KLO]
-    C1=y2-H/3.0*y2a[KHI]
-    
-    y=A*A*A*y1+3.0*A*A*B*C0+3.0*A*B*B*C1+B*B*B*y2
-    
-    return y 
+def bezier_interp_original(x_old, y_old, x_new):
+    """
+    Bezier interpolation, based on the scipy methods
 
+    This mostly sanitizes the input by removing masked values and duplicate entries
+    Note that in case of duplicate entries (in x_old) the results are not well defined as only one of the entries is used and the other is discarded
 
+    Parameters
+    ----------
+    x_old : array[n]
+        old x values
+    y_old : array[n]
+        old y values
+    x_new : array[m]
+        new x values
 
-#This mostly sanitizes the input by removing masked values and d
-#uplicate entries Note that in case of duplicate entries (in x_old) 
-#the results are not well defined as only one of the entries is used 
-#and the other is discarded
+    Returns
+    -------
+    y_new : array[m]
+        new y values
+    """
 
+    # Handle masked arrays
+    if np.ma.is_masked(x_old):
+        x_old = np.ma.compressed(x_old)
+        y_old = np.ma.compressed(y_old)
 
+    # avoid duplicate entries in x
+    assert x_old.size == y_old.size
+    x_old, index = np.unique(x_old, return_index=True)
+    y_old = y_old[index]
+
+    knots, coef, order = scipy.interpolate.splrep(x_old, y_old, s=0)
+    y_new = scipy.interpolate.BSpline(knots, coef, order)(x_new)
+    return y_new
+
+#-------------------------------------------------------------
 
 #devoloper test, make cont not as function
 
 
 
-
-
-#calling the make_cont
+#calling the make_cont since it is not a function yet I call the .ech here
 
 
 #*c-ech with wave solution 
@@ -197,8 +175,6 @@ wave=ech[1].data['WAVE']
     
 sig = sig * np.sqrt(cont)
 
-
-
     
 sav_data = readsav('data/'+directory+'/harps_blue.ord_default.sav')
     
@@ -206,9 +182,11 @@ blzcoef = sav_data.blzcoef
 col_range=sav_data.col_range
 
 
-#-----------
-#reference 
+# here from above should be part of the cont.pro 
+#since I doing it as a test this part was included here 
 
+#-----------
+#reference from IDL
 
 #function make_cont, ech, blaze, TEMPLATE=template, DEBUG=debug $
 #                  , COLRANGE=col_range, YRANGE=yrange, PARAM=param $
@@ -216,11 +194,8 @@ col_range=sav_data.col_range
 #                  , SPLICE_ONLY=splice_only,WEIGHTS=weights $
 #                  , ORDER_SCALES=order_scales, FILENAME=filename
 
-
-
                     
 #splice(ech[1], wave, spec, blzcoef, index=0, COLRANGE=list(col_range))
-
 
 
 #-----------
@@ -235,11 +210,10 @@ for i in np.linspace(0, len(col_range)-1, num=len(col_range)):
     
 col_range=aa.astype(int)
 
-
     
 #-----------
 
-#defining the calling parameter for make_cont
+#defining the calling parameter for make_cont since it is not a function yet
 ech=ech[1]
 wave=wave[0]
 spec=spec[0]
@@ -257,7 +231,6 @@ YRANGE=None
 #testing parameters 
 PARAM=[10, 8.e5, 1.e7, 1.]
 
-
 WRANGE=None
 POLY=None
 PLOT=None
@@ -267,15 +240,10 @@ WEIGHTS=None
 ORDER_SCALES=None
 FILENAME=None
 
-#-----------
-
-
+#-----------#-----------#-----------#-----------#-----------#-----------
 #begin of the make_cont "function as a code to make it easy for debuging 
 
-
 #n_params() number of arguments provided in the fucntion calling 
-
-
 
 #def make_cont(*args, **kwargs):
 #    if len(args) < 2:
@@ -311,14 +279,13 @@ FILENAME=None
     # Simulate the function being called with command line arguments
 #    make_cont(*sys.argv[1:])
 
-
-
 #check if the ech have all the columns I need. We need 8.
 #not the best way to check. But let's keep it that way for now
 
-
 #skipping all this checking
 
+
+#Checking if the .ech is valid
 if len(ech.columns) == 8 :
      e = ech
 
@@ -330,7 +297,7 @@ else:
 e_orig=e
 
 
-#check all keyword // Args
+#check all keywords // Args
 if FILENAME != None:
     fname= FILENAME
     
@@ -341,7 +308,7 @@ if DEBUG != None:
     
 #checking if we have WAVE
 
-#optimize this printing to show all columns what they are 
+#optimize this printing to show all columns and what they are.
 have_wave=False
 for c in ech.columns:
     print('ech structute has, '+ c.name)
@@ -355,7 +322,6 @@ if have_wave is False:
     print('MAKE_CONT: the ech structure does not contain the wavelength scale!')
 else:
     print('MAKE_CONT found a WAVE in ech structure')
-
 
 
 if sig is not None:
@@ -394,10 +360,8 @@ if TEMPLATE!= None:
     template_sp   = TEMPLATE[0] # Template spectrum
     #...
     
-    
-    
+ 
 #target = e.data['HEAD']['OBJECT'] # fix that becuase it does not work for the fits format I have here
-target = 'aa'
 
 w=e.data['WAVE'][0]
 
@@ -411,13 +375,15 @@ if nord != len(blaze):
     print('MAKE_CONT: inconsistent column length in blaze and spectrum arrays')
 
 
-
+#-------------------------------------------------------------
+#End of checking
 
 # min and max of the beging and end of the first and last order
 #w[0][colrange[0][0]:colrange[0][1]]
 #w[nord-1][colrange[nord-1][0]:colrange[nord-1][1]]
 
 
+#defining the min and max 
 min_w0 = min(w[0][colrange[0][0]:colrange[0][1]]) 
 min_wn = min(w[nord-1][colrange[nord-1][0]:colrange[nord-1][1]])
 
@@ -430,7 +396,7 @@ wmax = max([min_w0,min_wn])
 
 
 
-#set up parameters
+#setup parameters
 if len(PARAM) >= 4:
     print('Reading the parameters provided')
     par_0 = PARAM[0] #Number of iterations
@@ -452,10 +418,9 @@ else:
     
 
 #avoid 0 blaze function
-
-
-
 b = np.where(blaze<1, 1, blaze)
+
+
 
 
 for iord in np.linspace(0, nord-1, num=nord):
@@ -542,6 +507,8 @@ e.data['CONT']=b
     
 # Splice will provide the wsort and 
 
+print('Running Splice for all the orders...')
+
 with open('./splice-out.p', 'rb') as f:
     spliceout = pkl.load(f)
     
@@ -552,9 +519,12 @@ sig   = spliceout['unc']
 
 index = spliceout['index']
 
+
 if SPLICE_ONLY != None:
     out={'wave':wsort, 'spec':ss, 'cont':bb, 'unc':sig}
     
+    
+#remove the regions with two values in flux after the splice.     
     
 j = np.unique(wsort, return_index=True)
 
@@ -566,7 +536,6 @@ j_index = j[1]
 wsort_u = np.array([wsort[x] for x in j_index])
 
 
-    
  
 if TEMPLATE != None:
     temp=1
@@ -578,7 +547,14 @@ else:
     temp=1    
     
 
+
+#normalized? loks like the sB is normalized for one order (at least now)
 sB = (np.array([ss[x] for x in j_index]) / np.array([bb[x] for x in j_index])) / temp
+
+
+#SPEC!!
+#whole spectrum almost normalized
+#plt.plot(wsort_u,sB)
 
    
 #cosmic removal function. check this function 
@@ -588,7 +564,7 @@ weight=pyreduce.util.middle(sB,0.5,x=wsort_u-wmin)
 
 nwgt=len(weight)
     
-#check if it works, I changed index here
+#check if it works, I changed index here () little featueres check
 we_d = np.concatenate( ([0.], 2. * weight[1:nwgt-1] - weight[0:nwgt-2] - weight[2:nwgt-0], [0.]) )
 
 weight=weight/pyreduce.util.middle(weight,3.*par_1) + we_d
@@ -598,7 +574,9 @@ weight=weight/pyreduce.util.middle(weight,3.*par_1) + we_d
 weight[weight<0] = 1
 
 
-#check if it works
+#pyreduce.util.bezier_interp(x_old, y_old, x_new) 
+
+#check if it works [NOT SURE IF IT IS WORKING]
 weight=pyreduce.util.bezier_interp(wsort_u-wmin,weight,wave-wmin)
 
 
@@ -613,9 +591,20 @@ if WRANGE != None:    # If exclusion regions are given, set weights to 0
       weight[condition] = 0
 
 
-spec_B2 = bezier_init(wsort_u-wmin,sB)
 
+#what is that?
+#spec_B2 = bezier_init(wsort_u-wmin,sB)
+
+
+#all combined? new ss_B
+
+#why the bezier interp is destroying the intersection between orders? it come from the wsort_u-wmin and wave-wmin
 ss_B = pyreduce.util.bezier_interp(wsort_u-wmin,sB,wave-wmin)
+
+
+#spec ss_B is the new normalised but as the weight after the bezier the lenthn is 236243 instead of 183885 that are
+# the values after the splice. what exactly is the bezier interp doing in this sample
+#plt.plot(??,ss_B)
 
 
 bbb=pyreduce.util.middle(bb,1.)
@@ -687,9 +676,13 @@ cont_B = pyreduce.util.middle(cont_B,1.0)
 
 # Perform the operations
 #cont_B2 = bezier_init(wave - wmin, cont_B)
+
+
+#check that!
 cont = pyreduce.util.bezier_interp(wave - wmin, cont_B, wsort - wmin)
 
 
+#wsort is single order! why? something is wrong with index 
 
 for iord in range(nord):
     
@@ -727,17 +720,12 @@ print('e.cont:', e.data['CONT'])
 #---
 
 
+#before bezier 
+plt.plot(wsort_u,sB)
 
 
-
-
-
-
-
-
-
-
-
+#after bezier
+plt.plot(wave,ss_B)
 
 
 

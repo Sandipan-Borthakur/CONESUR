@@ -416,7 +416,7 @@ if iord0 > 0:
             #end scaling
              
             if (ww[iord][0]) > (ww[iord+1][0]):
-                print('Current order (1) is bluer than the previous (0)')
+                print(f"Current order ({iord+1}) is bluer than the previous {iord}")
                 
                 wgt0 = np.linspace(0.0, ni0-1, num=ni0)/ni0-1
                 wgt1 = 1.0 - wgt0
@@ -858,6 +858,8 @@ if iord0 < iord0+1 :
 # INDEX array will track assosciation of pixels with the original CCD pixels
 
 
+#counter for the first time it enter the loop
+init=0
 for iord in np.flip(np.linspace(0, nord-1, num=nord)):    
     iord=int(iord)
     
@@ -866,10 +868,12 @@ for iord in np.flip(np.linspace(0, nord-1, num=nord)):
     
     
     # if it is the first order, do...
-    if (iord==0):
+    if (init==0):
+        print(f"First order, appending the order {iord}")
         wave=ww[iord][i1:i2]
         spec=sp[iord][i1:i2]
         blaz=bb[iord][i1:i2]
+        init=1
         
         if has_sig==1:
             
@@ -877,6 +881,7 @@ for iord in np.flip(np.linspace(0, nord-1, num=nord)):
             index = np.full(i2 - i1+1, iord)
         
     else:
+        print(f"Not the first order, appending the order {iord}")
         # add the orders together in one single spectrum
         wave = np.append(wave, ww[iord][i1:i2])
         spec = np.append(spec, sp[iord][i1:i2])
@@ -887,11 +892,15 @@ for iord in np.flip(np.linspace(0, nord-1, num=nord)):
             sig   = np.append(sig, unc[iord][i1:i2])
             index = np.append(index, np.full(i2 - i1+1, iord))
 
+
+print('Debug')
+print(wave)
+
 isort = np.argsort(wave)
 
-wave=wave[isort]
-spec=spec[isort]
-blaz=blaz[isort]
+#wave=wave[isort]
+#spec=spec[isort]
+#blaz=blaz[isort]
 
 
 #does not work if has_sig == 0 
